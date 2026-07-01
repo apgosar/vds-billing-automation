@@ -1,0 +1,13 @@
+.env
+service_account.json
+*.json
+__pycache__/
+*.py[cod]
+*$py.class
+*.zip
+*.xlsx
+.venv/
+venv/
+ENV/
+env/
+.streamlit/
