@@ -14,6 +14,7 @@ MIS_TAB_NAME = os.getenv("MIS_TAB_NAME", "MIS")
 CONFIG_TAB_NAME = os.getenv("CONFIG_TAB_NAME", "Configuration")
 DATE_COLUMN_NAME = os.getenv("DATE_COLUMN_NAME", "Visit Date")
 BANK_COLUMN_NAME = os.getenv("BANK_COLUMN_NAME", "Bank Name")
+GOOGLE_CREDENTIALS_JSON = os.getenv("GOOGLE_CREDENTIALS_JSON")
 GOOGLE_CREDENTIALS_PATH = os.getenv("GOOGLE_CREDENTIALS_PATH", "service_account.json")
 
 st.set_page_config(page_title="MIS Data Extraction", layout="wide")
@@ -26,14 +27,18 @@ target_year = st.sidebar.selectbox("Target Year", range(current_year - 5, curren
 
 if st.button("Generate Billing Sheets"):
     if not SPREADSHEET_URL or SPREADSHEET_URL == "https://docs.google.com/spreadsheets/d/your_spreadsheet_id_here":
-        st.error("Please set a valid SPREADSHEET_URL in your .env file.")
-    elif not os.path.exists(GOOGLE_CREDENTIALS_PATH):
-        st.error(f"Credentials file not found at: '{GOOGLE_CREDENTIALS_PATH}'. Please put your service account JSON file there or update GOOGLE_CREDENTIALS_PATH in the .env file.")
+        st.error("Please set a valid SPREADSHEET_URL in your environment variables.")
+    elif not GOOGLE_CREDENTIALS_JSON and not os.path.exists(GOOGLE_CREDENTIALS_PATH):
+        st.error(f"Credentials not found. Please set GOOGLE_CREDENTIALS_JSON or provide the file at: '{GOOGLE_CREDENTIALS_PATH}'.")
     else:
         with st.spinner("Authenticating and Fetching Data..."):
             try:
-                # 1. Authenticate using file path
-                client = get_sheets_client_from_file(GOOGLE_CREDENTIALS_PATH)
+                # 1. Authenticate using JSON string or file path
+                if GOOGLE_CREDENTIALS_JSON:
+                    from sheets_api import get_sheets_client
+                    client = get_sheets_client(GOOGLE_CREDENTIALS_JSON)
+                else:
+                    client = get_sheets_client_from_file(GOOGLE_CREDENTIALS_PATH)
                 
                 # 2. Fetch Data
                 mis_df = fetch_data_from_sheet(client, SPREADSHEET_URL, MIS_TAB_NAME, as_records=True)
