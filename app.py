@@ -23,9 +23,23 @@ st.set_page_config(page_title="MIS Data Extraction", layout="wide")
 st.title("MIS Billing Automation")
 
 st.sidebar.header("Data Filters")
-current_year = datetime.datetime.now().year
-target_month = st.sidebar.selectbox("Target Month", range(1, 13), format_func=lambda x: datetime.date(1900, x, 1).strftime('%B'))
-target_year = st.sidebar.selectbox("Target Year", range(current_year - 5, current_year + 2), index=5)
+now = datetime.datetime.now()
+default_month = now.month - 1
+default_year = now.year
+
+if default_month == 0:
+    default_month = 12
+    default_year -= 1
+
+month_index = default_month - 1
+year_options = list(range(now.year - 5, now.year + 2))
+try:
+    year_index = year_options.index(default_year)
+except ValueError:
+    year_index = 5
+
+target_month = st.sidebar.selectbox("Target Month", range(1, 13), index=month_index, format_func=lambda x: datetime.date(1900, x, 1).strftime('%B'))
+target_year = st.sidebar.selectbox("Target Year", year_options, index=year_index)
 
 col1, col2 = st.columns(2)
 with col1:
