@@ -57,14 +57,23 @@ def process_mis_data(mis_df, config_data, target_month, target_year, date_column
             for conf in configs:
                 parts = [p.strip() for p in conf.split(':')]
                 
-                if len(parts) > 1 and parts[-1].lower() == 'highlight':
-                    parts.pop()
-                    highlight_col = True
-                else:
-                    highlight_col = False
-                    
+                is_highlight = False
+                is_number = False
+                
+                # Extract all valid flags from the end of the configuration string
+                while len(parts) > 1:
+                    last_flag = parts[-1].lower()
+                    if last_flag == 'highlight':
+                        is_highlight = True
+                        parts.pop()
+                    elif last_flag == 'number':
+                        is_number = True
+                        parts.pop()
+                    else:
+                        break
+                        
                 bank_col_name = parts[0]
-                if highlight_col:
+                if is_highlight:
                     columns_to_highlight.add(bank_col_name)
                     
                 if len(parts) == 1:
@@ -92,6 +101,14 @@ def process_mis_data(mis_df, config_data, target_month, target_year, date_column
                     else:
                         # Fallback or unknown format
                         output_df[bank_col_name] = None
+                        
+                # Apply numeric conversion if requested
+                if is_number and bank_col_name in output_df.columns:
+                    # Convert to string to replace commas, then convert to numeric
+                    series = output_df[bank_col_name].astype(str).str.replace(',', '', regex=False)
+                    # Replace literal "None" and "nan" strings that might have been created by astype(str) on empty cells
+                    series = series.replace({'None': pd.NA, 'nan': pd.NA})
+                    output_df[bank_col_name] = pd.to_numeric(series, errors='coerce')
             
             # Create Excel file in memory
             excel_buffer = io.BytesIO()
