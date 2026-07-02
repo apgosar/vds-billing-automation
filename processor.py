@@ -52,10 +52,21 @@ def process_mis_data(mis_df, config_data, target_month, target_year, date_column
             # Auto-populate Serial Number as the first column
             output_df['Sr No'] = range(1, len(bank_data) + 1)
             
+            columns_to_highlight = set()
+            
             for conf in configs:
                 parts = [p.strip() for p in conf.split(':')]
-                bank_col_name = parts[0]
                 
+                if len(parts) > 1 and parts[-1].lower() == 'highlight':
+                    parts.pop()
+                    highlight_col = True
+                else:
+                    highlight_col = False
+                    
+                bank_col_name = parts[0]
+                if highlight_col:
+                    columns_to_highlight.add(bank_col_name)
+                    
                 if len(parts) == 1:
                     # Bank Column Name only -> implies same name in MIS
                     mis_col_name = bank_col_name
@@ -128,6 +139,16 @@ def process_mis_data(mis_df, config_data, target_month, target_year, date_column
                             adjusted_width = 60
                             
                         worksheet.set_column(col_idx, col_idx, adjusted_width)
+                        
+                # Define highlight format for duplicates
+                duplicate_format = workbook.add_format({'bg_color': '#FFC7CE', 'font_color': '#9C0006'})
+                
+                # Apply conditional formatting for duplicates
+                if not output_df.empty:
+                    for col_idx, col_name in enumerate(output_df.columns):
+                        if str(col_name).strip() in columns_to_highlight:
+                            worksheet.conditional_format(1, col_idx, len(output_df), col_idx,
+                                                         {'type': 'duplicate', 'format': duplicate_format})
             
             excel_buffer.seek(0)
             generated_files.append((bank_name, excel_buffer.getvalue()))
