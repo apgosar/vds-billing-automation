@@ -13,6 +13,7 @@ SPREADSHEET_URL = os.getenv("SPREADSHEET_URL")
 MIS_TAB_NAME = os.getenv("MIS_TAB_NAME", "MIS")
 CONFIG_SPREADSHEET_URL = os.getenv("CONFIG_SPREADSHEET_URL")
 CONFIG_TAB_NAME = os.getenv("CONFIG_TAB_NAME", "Configuration")
+CUSTOM_RULES_TAB_NAME = os.getenv("CUSTOM_RULES_TAB_NAME", "Custom Rules")
 DATE_COLUMN_NAME = os.getenv("DATE_COLUMN_NAME", "Visit Date")
 BANK_COLUMN_NAME = os.getenv("BANK_COLUMN_NAME", "Bank Name")
 GOOGLE_CREDENTIALS_JSON = os.getenv("GOOGLE_CREDENTIALS_JSON")
@@ -99,7 +100,13 @@ if btn_billing or btn_final:
                     st.warning(f"No configuration found for {action_name}. Ensure you have added rows under the correct marker.")
                 else:
                     # 3. Process Data
-                    files, logs = process_mis_data(mis_df, target_config, target_month, target_year, DATE_COLUMN_NAME, BANK_COLUMN_NAME)
+                    custom_rules_df = pd.DataFrame()
+                    try:
+                        custom_rules_df = fetch_data_from_sheet(client, CONFIG_SPREADSHEET_URL, CUSTOM_RULES_TAB_NAME, as_records=True)
+                    except Exception:
+                        pass # Tab might not exist yet
+                        
+                    files, logs = process_mis_data(mis_df, target_config, target_month, target_year, DATE_COLUMN_NAME, BANK_COLUMN_NAME, custom_rules_df)
                     
                     # Show execution logs
                     st.subheader(f"Execution Log: {action_name}")
