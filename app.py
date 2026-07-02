@@ -26,7 +26,13 @@ current_year = datetime.datetime.now().year
 target_month = st.sidebar.selectbox("Target Month", range(1, 13), format_func=lambda x: datetime.date(1900, x, 1).strftime('%B'))
 target_year = st.sidebar.selectbox("Target Year", range(current_year - 5, current_year + 2), index=5)
 
-if st.button("Generate Billing Sheets"):
+col1, col2 = st.columns(2)
+with col1:
+    btn_billing = st.button("Generate Billing Sheets", use_container_width=True)
+with col2:
+    btn_final = st.button("Generate Final Bills", use_container_width=True)
+
+if btn_billing or btn_final:
     if not SPREADSHEET_URL or SPREADSHEET_URL == "https://docs.google.com/spreadsheets/d/your_spreadsheet_id_here":
         st.error("Please set a valid SPREADSHEET_URL in your environment variables.")
     elif not CONFIG_SPREADSHEET_URL or CONFIG_SPREADSHEET_URL == "https://docs.google.com/spreadsheets/d/your_config_spreadsheet_id_here":
@@ -47,7 +53,7 @@ if st.button("Generate Billing Sheets"):
                 mis_df = fetch_data_from_sheet(client, SPREADSHEET_URL, MIS_TAB_NAME, as_records=True)
                 
                 # Fetch Config Data (using get_all_values so it's a list of lists)
-                config_data = fetch_data_from_sheet(client, CONFIG_SPREADSHEET_URL, CONFIG_TAB_NAME, as_records=False)
+                config_data_raw = fetch_data_from_sheet(client, CONFIG_SPREADSHEET_URL, CONFIG_TAB_NAME, as_records=False)
                 st.success("Successfully fetched data from Google Sheets.")
                 
             except Exception as e:
@@ -56,29 +62,65 @@ if st.button("Generate Billing Sheets"):
                 
         with st.spinner("Processing Data..."):
             try:
-                # 3. Process Data
-                files, logs = process_mis_data(mis_df, config_data, target_month, target_year, DATE_COLUMN_NAME, BANK_COLUMN_NAME)
+                # Parse config sections
+                billing_config = []
+                final_bill_config = []
+                current_section = "BILLING"
                 
-                # Show execution logs
-                st.subheader("Execution Log")
-                with st.container(border=True):
-                    for log in logs:
-                        st.text(log)
+                for row in config_data_raw:
+                    if not row:
+                        continue
+                    first_col = str(row[0]).strip().upper()
+                    if first_col == "[BILLING SHEETS]":
+                        current_section = "BILLING"
+                        continue
+                    elif first_col == "[FINAL BILLS]":
+                        current_section = "FINAL"
+                        continue
                         
-                if not files:
-                    st.warning("No data found for the given month/year or matching bank configurations.")
+                    if current_section == "BILLING":
+                        billing_config.append(row)
+                    elif current_section == "FINAL":
+                        final_bill_config.append(row)
+                        
+                # Determine which config to use
+                if btn_billing:
+                    target_config = billing_config
+                    action_name = "Billing Sheets"
+                    suffix = "_Billing"
+                    zip_name = f"Billing_Sheets_{target_month}_{target_year}.zip"
                 else:
-                    # 4. Create ZIP
-                    zip_bytes = create_zip_file(files)
+                    target_config = final_bill_config
+                    action_name = "Final Bills"
+                    suffix = "_Final_Bill"
+                    zip_name = f"Final_Bills_{target_month}_{target_year}.zip"
                     
-                    st.success(f"Successfully generated files for {len(files)} banks!")
-                    st.download_button(
-                        label="⬇️ Download All as ZIP",
-                        data=zip_bytes,
-                        file_name=f"Billing_Sheets_{target_month}_{target_year}.zip",
-                        mime="application/zip",
-                        type="primary"
-                    )
+                if not target_config:
+                    st.warning(f"No configuration found for {action_name}. Ensure you have added rows under the correct marker.")
+                else:
+                    # 3. Process Data
+                    files, logs = process_mis_data(mis_df, target_config, target_month, target_year, DATE_COLUMN_NAME, BANK_COLUMN_NAME)
+                    
+                    # Show execution logs
+                    st.subheader(f"Execution Log: {action_name}")
+                    with st.container(border=True):
+                        for log in logs:
+                            st.text(log)
+                            
+                    if not files:
+                        st.warning("No data found for the given month/year or matching bank configurations.")
+                    else:
+                        # 4. Create ZIP
+                        zip_bytes = create_zip_file(files, suffix=suffix)
+                        
+                        st.success(f"Successfully generated files for {len(files)} banks!")
+                        st.download_button(
+                            label=f"⬇️ Download {action_name} as ZIP",
+                            data=zip_bytes,
+                            file_name=zip_name,
+                            mime="application/zip",
+                            type="primary"
+                        )
                             
             except Exception as e:
                 st.error(f"Error processing data: {e}")

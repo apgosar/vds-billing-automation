@@ -133,7 +133,7 @@ def process_mis_data(mis_df, config_data, target_month, target_year, date_column
             
     return generated_files, logs
 
-def create_zip_file(files):
+def create_zip_file(files, suffix="_Billing"):
     """
     Creates a ZIP file containing the generated Excel files.
     files: list of tuples (bank_name, excel_bytes)
@@ -143,7 +143,7 @@ def create_zip_file(files):
         for bank_name, excel_bytes in files:
             # Clean bank name for filename
             clean_bank_name = "".join([c for c in bank_name if c.isalpha() or c.isdigit() or c==' ']).rstrip()
-            filename = f"{clean_bank_name}_Billing.xlsx"
+            filename = f"{clean_bank_name}{suffix}.xlsx"
             zip_file.writestr(filename, excel_bytes)
             
     zip_buffer.seek(0)
