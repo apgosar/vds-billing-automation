@@ -52,8 +52,12 @@ def process_mis_data(mis_df, config_data, target_month, target_year, date_column
                 custom_rules_df.columns = custom_rules_df.columns.astype(str).str.strip()
                 
                 if 'Bank Name' in custom_rules_df.columns:
-                    # Filter rules for this specific bank
-                    bank_rules = custom_rules_df[custom_rules_df['Bank Name'].astype(str).str.strip() == bank_name]
+                    # Filter rules for this specific bank (case-insensitive)
+                    bank_mask = custom_rules_df['Bank Name'].astype(str).str.strip().str.upper() == bank_name.upper()
+                    bank_rules = custom_rules_df[bank_mask]
+                    
+                    if not bank_rules.empty:
+                        logs.append(f"  -> 🧠 Custom Rules: Found {len(bank_rules)} rule(s).")
                     
                     for _, rule in bank_rules.iterrows():
                         target_col = str(rule.get('Target Column', '')).strip()
@@ -67,16 +71,22 @@ def process_mis_data(mis_df, config_data, target_month, target_year, date_column
                         fallback_val = str(fallback_raw).strip()
                         
                         if not target_col or not condition_col:
+                            logs.append(f"    -> ⚠️ Warning: Rule skipped. Missing 'Target Column' or 'Condition Column'.")
                             continue
                             
                         # Initialize the target column with fallback value if it doesn't exist yet
                         if target_col not in bank_data.columns:
                             bank_data[target_col] = fallback_val
+                            logs.append(f"    -> ⚙️ Initialized '{target_col}' with fallback '{fallback_val}'")
                             
                         # Apply the condition
                         if condition_col in bank_data.columns:
-                            mask = bank_data[condition_col].astype(str).str.strip() == condition_val
+                            mask = bank_data[condition_col].astype(str).str.strip().str.upper() == condition_val.upper()
+                            matches = mask.sum()
                             bank_data.loc[mask, target_col] = result_val
+                            logs.append(f"    -> ⚙️ Rule Applied: IF '{condition_col}' == '{condition_val}' THEN '{target_col}' = '{result_val}' ({matches} matches)")
+                        else:
+                            logs.append(f"    -> ⚠️ Warning: Condition column '{condition_col}' not found in MIS data.")
             # ---------------------------
 
             logs.append(f"  -> ✅ Success: Found {len(bank_data)} records.")
