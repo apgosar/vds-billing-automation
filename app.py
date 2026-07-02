@@ -11,6 +11,7 @@ load_dotenv()
 
 SPREADSHEET_URL = os.getenv("SPREADSHEET_URL")
 MIS_TAB_NAME = os.getenv("MIS_TAB_NAME", "MIS")
+CONFIG_SPREADSHEET_URL = os.getenv("CONFIG_SPREADSHEET_URL")
 CONFIG_TAB_NAME = os.getenv("CONFIG_TAB_NAME", "Configuration")
 DATE_COLUMN_NAME = os.getenv("DATE_COLUMN_NAME", "Visit Date")
 BANK_COLUMN_NAME = os.getenv("BANK_COLUMN_NAME", "Bank Name")
@@ -28,6 +29,8 @@ target_year = st.sidebar.selectbox("Target Year", range(current_year - 5, curren
 if st.button("Generate Billing Sheets"):
     if not SPREADSHEET_URL or SPREADSHEET_URL == "https://docs.google.com/spreadsheets/d/your_spreadsheet_id_here":
         st.error("Please set a valid SPREADSHEET_URL in your environment variables.")
+    elif not CONFIG_SPREADSHEET_URL or CONFIG_SPREADSHEET_URL == "https://docs.google.com/spreadsheets/d/your_config_spreadsheet_id_here":
+        st.error("Please set a valid CONFIG_SPREADSHEET_URL in your environment variables.")
     elif not GOOGLE_CREDENTIALS_JSON and not os.path.exists(GOOGLE_CREDENTIALS_PATH):
         st.error(f"Credentials not found. Please set GOOGLE_CREDENTIALS_JSON or provide the file at: '{GOOGLE_CREDENTIALS_PATH}'.")
     else:
@@ -42,7 +45,9 @@ if st.button("Generate Billing Sheets"):
                 
                 # 2. Fetch Data
                 mis_df = fetch_data_from_sheet(client, SPREADSHEET_URL, MIS_TAB_NAME, as_records=True)
-                config_data = fetch_data_from_sheet(client, SPREADSHEET_URL, CONFIG_TAB_NAME, as_records=False)
+                
+                # Fetch Config Data (using get_all_values so it's a list of lists)
+                config_data = fetch_data_from_sheet(client, CONFIG_SPREADSHEET_URL, CONFIG_TAB_NAME, as_records=False)
                 st.success("Successfully fetched data from Google Sheets.")
                 
             except Exception as e:
