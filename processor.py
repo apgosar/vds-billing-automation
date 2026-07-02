@@ -49,6 +49,9 @@ def process_mis_data(mis_df, config_data, target_month, target_year, date_column
             logs.append(f"  -> ✅ Success: Found {len(bank_data)} records.")
             output_df = pd.DataFrame(index=bank_data.index)
             
+            # Auto-populate Serial Number as the first column
+            output_df['Sr No'] = range(1, len(bank_data) + 1)
+            
             for conf in configs:
                 parts = [p.strip() for p in conf.split(':')]
                 bank_col_name = parts[0]
