@@ -103,8 +103,8 @@ if btn_billing or btn_final:
                     custom_rules_df = pd.DataFrame()
                     try:
                         custom_rules_df = fetch_data_from_sheet(client, CONFIG_SPREADSHEET_URL, CUSTOM_RULES_TAB_NAME, as_records=True)
-                    except Exception:
-                        pass # Tab might not exist yet
+                    except Exception as e:
+                        st.warning(f"Could not load the '{CUSTOM_RULES_TAB_NAME}' tab from Configuration sheet. Ensure the name is exactly matching. ({e})")
                         
                     files, logs = process_mis_data(mis_df, target_config, target_month, target_year, DATE_COLUMN_NAME, BANK_COLUMN_NAME, custom_rules_df)
                     

@@ -48,27 +48,35 @@ def process_mis_data(mis_df, config_data, target_month, target_year, date_column
                 
             # --- CUSTOM RULES ENGINE ---
             if custom_rules_df is not None and not custom_rules_df.empty:
-                # Filter rules for this specific bank
-                bank_rules = custom_rules_df[custom_rules_df['Bank Name'].astype(str).str.strip() == bank_name]
+                # Strip column names to avoid trailing space issues from Google Sheets
+                custom_rules_df.columns = custom_rules_df.columns.astype(str).str.strip()
                 
-                for _, rule in bank_rules.iterrows():
-                    target_col = str(rule.get('Target Column', '')).strip()
-                    condition_col = str(rule.get('Condition Column', '')).strip()
-                    condition_val = str(rule.get('Condition Value', '')).strip()
-                    result_val = str(rule.get('Result Value', '')).strip()
-                    fallback_val = str(rule.get('Fallback Value', '')).strip()
+                if 'Bank Name' in custom_rules_df.columns:
+                    # Filter rules for this specific bank
+                    bank_rules = custom_rules_df[custom_rules_df['Bank Name'].astype(str).str.strip() == bank_name]
                     
-                    if not target_col or not condition_col:
-                        continue
+                    for _, rule in bank_rules.iterrows():
+                        target_col = str(rule.get('Target Column', '')).strip()
+                        condition_col = str(rule.get('Condition Column', '')).strip()
+                        condition_val = str(rule.get('Condition Value', '')).strip()
+                        result_val = str(rule.get('Result Value', '')).strip()
                         
-                    # Initialize the target column with fallback value if it doesn't exist yet
-                    if target_col not in bank_data.columns:
-                        bank_data[target_col] = fallback_val
+                        fallback_raw = rule.get('Fallback Value', '')
+                        if pd.isna(fallback_raw):
+                            fallback_raw = ''
+                        fallback_val = str(fallback_raw).strip()
                         
-                    # Apply the condition
-                    if condition_col in bank_data.columns:
-                        mask = bank_data[condition_col].astype(str).str.strip() == condition_val
-                        bank_data.loc[mask, target_col] = result_val
+                        if not target_col or not condition_col:
+                            continue
+                            
+                        # Initialize the target column with fallback value if it doesn't exist yet
+                        if target_col not in bank_data.columns:
+                            bank_data[target_col] = fallback_val
+                            
+                        # Apply the condition
+                        if condition_col in bank_data.columns:
+                            mask = bank_data[condition_col].astype(str).str.strip() == condition_val
+                            bank_data.loc[mask, target_col] = result_val
             # ---------------------------
 
             logs.append(f"  -> ✅ Success: Found {len(bank_data)} records.")
@@ -236,7 +244,7 @@ def create_zip_file(files, suffix="_Billing"):
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
         for bank_name, excel_bytes in files:
             # Clean bank name for filename
-            clean_bank_name = "".join([c for c in bank_name if c.isalpha() or c.isdigit() or c==' ']).rstrip()
+            clean_bank_name = "".join([c for c in bank_name if c.isalpha() or c.isdigit() or c==' ' or c=='_']).rstrip()
             filename = f"{clean_bank_name}{suffix}.xlsx"
             zip_file.writestr(filename, excel_bytes)
             
