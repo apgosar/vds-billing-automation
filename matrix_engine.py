@@ -70,6 +70,9 @@ def parse_cost_matrices(raw_data):
             current_bank = col0
             row_col_name = str(row[1]).strip() if len(row) > 1 else ""
             col_col_name = str(row[2]).strip() if len(row) > 2 else ""
+            output_col_name = str(row[3]).strip() if len(row) > 3 else "Amount"
+            if not output_col_name:
+                output_col_name = "Amount"
             
             # Next row should be headers
             i += 1
@@ -81,6 +84,7 @@ def parse_cost_matrices(raw_data):
                 matrices[current_bank] = {
                     'row_col': row_col_name,
                     'col_col': col_col_name,
+                    'output_col': output_col_name,
                     'col_headers': col_headers,
                     'data': {}
                 }
@@ -100,13 +104,14 @@ def parse_cost_matrices(raw_data):
         
     return matrices
 
-def evaluate_matrix(df, matrix_def, amount_col_name='Amount'):
+def evaluate_matrix(df, matrix_def):
     """
     Evaluates the dataframe using the parsed matrix definition.
-    Injects 'Amount' column. Missing matches default to 0.
+    Injects the dynamically named output column. Missing matches default to 0.
     """
     row_col = matrix_def.get('row_col', '').strip()
     col_col = matrix_def.get('col_col', '').strip()
+    amount_col_name = matrix_def.get('output_col', 'Amount')
     col_headers = matrix_def['col_headers']
     data = matrix_def['data']
     
