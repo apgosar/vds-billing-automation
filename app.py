@@ -181,35 +181,46 @@ with tab_matrix:
             selected_bank = st.selectbox("Select Bank Configuration", list(matrices.keys()))
             uploaded_file = st.file_uploader("Upload Excel File (.xls or .xlsx)", type=['xls', 'xlsx'])
             
-            if uploaded_file is not None and st.button("Calculate & Download"):
-                with st.spinner("Processing file..."):
-                    try:
-                        df = pd.read_excel(uploaded_file)
-                        matrix_def = matrices[selected_bank]
-                        
-                        df_processed, matrix_logs = evaluate_matrix(df, matrix_def)
-                        
-                        st.subheader("Execution Log")
-                        with st.container(border=True):
-                            for log in matrix_logs:
-                                st.text(log)
+            if uploaded_file is not None:
+                try:
+                    xls = pd.ExcelFile(uploaded_file)
+                    sheet_names = xls.sheet_names
+                except Exception as e:
+                    st.error(f"Error reading Excel file: {e}")
+                    sheet_names = []
+                    
+                if sheet_names:
+                    selected_sheet = st.selectbox("Select Sheet to Process", sheet_names)
+                    
+                    if st.button("Calculate & Download"):
+                        with st.spinner("Processing file..."):
+                            try:
+                                df = pd.read_excel(uploaded_file, sheet_name=selected_sheet)
+                                matrix_def = matrices[selected_bank]
                                 
-                        # Save to memory
-                        output = io.BytesIO()
-                        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                            df_processed.to_excel(writer, index=False, sheet_name='Processed Data')
-                        output.seek(0)
-                        
-                        original_name = uploaded_file.name
-                        new_name = original_name.rsplit('.', 1)[0] + "_Priced.xlsx"
-                        
-                        st.success("File processed successfully!")
-                        st.download_button(
-                            label="⬇️ Download Processed Excel",
-                            data=output.getvalue(),
-                            file_name=new_name,
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            type="primary"
-                        )
-                    except Exception as e:
-                        st.error(f"Error processing uploaded file: {e}")
+                                df_processed, matrix_logs = evaluate_matrix(df, matrix_def)
+                                
+                                st.subheader("Execution Log")
+                                with st.container(border=True):
+                                    for log in matrix_logs:
+                                        st.text(log)
+                                        
+                                # Save to memory
+                                output = io.BytesIO()
+                                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                                    df_processed.to_excel(writer, index=False, sheet_name='Processed Data')
+                                output.seek(0)
+                                
+                                original_name = uploaded_file.name
+                                new_name = original_name.rsplit('.', 1)[0] + "_Priced.xlsx"
+                                
+                                st.success("File processed successfully!")
+                                st.download_button(
+                                    label="⬇️ Download Processed Excel",
+                                    data=output.getvalue(),
+                                    file_name=new_name,
+                                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                    type="primary"
+                                )
+                            except Exception as e:
+                                st.error(f"Error processing uploaded file: {e}")
