@@ -105,39 +105,68 @@ def evaluate_matrix(df, matrix_def, amount_col_name='Amount'):
     Evaluates the dataframe using the parsed matrix definition.
     Injects 'Amount' column. Missing matches default to 0.
     """
-    row_col = matrix_def['row_col']
-    col_col = matrix_def['col_col']
+    row_col = matrix_def.get('row_col', '').strip()
+    col_col = matrix_def.get('col_col', '').strip()
     col_headers = matrix_def['col_headers']
     data = matrix_def['data']
     
     # Initialize Amount column with 0
     df[amount_col_name] = 0
     
-    if row_col not in df.columns or col_col not in df.columns:
-        return df, [f"⚠️ Missing required columns: '{row_col}' or '{col_col}' in uploaded file."]
+    missing = []
+    if row_col and row_col.lower() not in ['none', 'any', ''] and row_col not in df.columns:
+        missing.append(row_col)
+    if col_col and col_col.lower() not in ['none', 'any', ''] and col_col not in df.columns:
+        missing.append(col_col)
+        
+    if missing:
+        return df, [f"⚠️ Missing required columns: {', '.join(missing)} in uploaded file."]
         
     logs = [f"Evaluating matrix using Row: '{row_col}', Col: '{col_col}'"]
     match_count = 0
     
     for idx, df_row in df.iterrows():
-        r_val = str(df_row[row_col]).strip().upper()
-        c_val = df_row[col_col]
-        
+        # Get Row Value
+        if not row_col or row_col.lower() in ['none', 'any', '']:
+            r_val = "ANY"
+        else:
+            r_val = str(df_row[row_col]).strip().upper()
+            
+        # Get Col Value
+        if not col_col or col_col.lower() in ['none', 'any', '']:
+            c_val = 0
+        else:
+            c_val = df_row[col_col]
+            
         # 1. Match Row
+        row_amounts = None
         if r_val in data:
             row_amounts = data[r_val]
-            
+        else:
+            # Fallback: Try range matching on the row headers if they are numeric ranges!
+            for r_header, r_amts in data.items():
+                if match_range(r_val, r_header):
+                    row_amounts = r_amts
+                    break
+                    
+        if row_amounts is not None:
             # 2. Match Column Bucket
             matched_amount = 0
-            for col_idx, header in enumerate(col_headers):
-                if match_range(c_val, header):
-                    # We found the bucket!
-                    amt_str = row_amounts[col_idx]
-                    try:
-                        matched_amount = float(amt_str)
-                    except ValueError:
-                        matched_amount = 0
-                    break
+            if not col_col or col_col.lower() in ['none', 'any', '']:
+                # It's a 1D column-less mapping, just take the first value
+                try:
+                    matched_amount = float(row_amounts[0])
+                except (ValueError, IndexError):
+                    matched_amount = 0
+            else:
+                for col_idx, header in enumerate(col_headers):
+                    if match_range(c_val, header):
+                        amt_str = row_amounts[col_idx]
+                        try:
+                            matched_amount = float(amt_str)
+                        except ValueError:
+                            matched_amount = 0
+                        break
                     
             if matched_amount > 0:
                 df.at[idx, amount_col_name] = matched_amount
