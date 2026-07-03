@@ -158,11 +158,14 @@ def evaluate_matrix(df, matrix_def):
             # 2. Match Column Bucket
             matched_amount = 0
             if not col_col or col_col.lower() in ['none', 'any', '']:
-                # It's a 1D column-less mapping, just take the first value
-                try:
-                    matched_amount = float(row_amounts[0])
-                except (ValueError, IndexError):
-                    matched_amount = 0
+                # It's a 1D column-less mapping, find the first non-empty value
+                for amt in row_amounts:
+                    if amt.strip():
+                        try:
+                            matched_amount = float(amt)
+                        except ValueError:
+                            pass
+                        break
             else:
                 for col_idx, header in enumerate(col_headers):
                     if match_range(c_val, header):
