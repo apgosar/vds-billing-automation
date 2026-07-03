@@ -205,10 +205,47 @@ with tab_matrix:
                                     for log in matrix_logs:
                                         st.text(log)
                                         
-                                # Save to memory
+                                # Save to memory and preserve formatting using openpyxl
+                                import openpyxl
+                                uploaded_file.seek(0)
+                                wb = openpyxl.load_workbook(uploaded_file)
+                                ws = wb[selected_sheet]
+                                
+                                amount_col_name = matrix_def.get('output_col', 'Amount')
+                                
+                                # 1. Find the header row by looking for the first column of our dataframe
+                                header_row = 1
+                                if len(df.columns) > 0:
+                                    first_col_name = str(df.columns[0]).strip()
+                                    found = False
+                                    for r in range(1, 21): # Search first 20 rows
+                                        for c in range(1, ws.max_column + 1):
+                                            val = ws.cell(row=r, column=c).value
+                                            if val is not None and str(val).strip() == first_col_name:
+                                                header_row = r
+                                                found = True
+                                                break
+                                        if found:
+                                            break
+                                            
+                                # 2. Find the target amount column index
+                                amount_col_idx = None
+                                for c in range(1, ws.max_column + 2):
+                                    val = ws.cell(row=header_row, column=c).value
+                                    if val is not None and str(val).strip() == amount_col_name:
+                                        amount_col_idx = c
+                                        break
+                                        
+                                if not amount_col_idx:
+                                    amount_col_idx = ws.max_column + 1
+                                    ws.cell(row=header_row, column=amount_col_idx).value = amount_col_name
+                                    
+                                # 3. Write values sequentially
+                                for i, val in enumerate(df_processed[amount_col_name]):
+                                    ws.cell(row=header_row + 1 + i, column=amount_col_idx).value = val
+                                    
                                 output = io.BytesIO()
-                                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                                    df_processed.to_excel(writer, index=False, sheet_name='Processed Data')
+                                wb.save(output)
                                 output.seek(0)
                                 
                                 original_name = uploaded_file.name
