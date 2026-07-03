@@ -17,7 +17,7 @@ def match_range(value, range_str):
         return False
         
     # Check 'A - B'
-    match = re.match(r'^([\d\.]+)\s*-\s*([\d\.]+)$', range_str)
+    match = re.match(r'^([\d\.]+)\s*[-–]\s*([\d\.]+)$', range_str)
     if match:
         a, b = float(match.group(1)), float(match.group(2))
         return a <= val <= b
@@ -128,6 +128,8 @@ def evaluate_matrix(df, matrix_def):
         return df, [f"⚠️ Missing required columns: {', '.join(missing)} in uploaded file."]
         
     logs = [f"Evaluating matrix using Row: '{row_col}', Col: '{col_col}'"]
+    logs.append(f"Total rows in uploaded Excel file: {len(df)}")
+    logs.append(f"Matrix Dictionary: {data}")
     match_count = 0
     
     for idx, df_row in df.iterrows():
@@ -145,13 +147,16 @@ def evaluate_matrix(df, matrix_def):
             
         # 1. Match Row
         row_amounts = None
+        matched_rule = None
         if r_val in data:
             row_amounts = data[r_val]
+            matched_rule = r_val
         else:
             # Fallback: Try range matching on the row headers if they are numeric ranges!
             for r_header, r_amts in data.items():
                 if match_range(r_val, r_header):
                     row_amounts = r_amts
+                    matched_rule = r_header
                     break
                     
         if row_amounts is not None:
@@ -179,6 +184,11 @@ def evaluate_matrix(df, matrix_def):
             if matched_amount > 0:
                 df.at[idx, amount_col_name] = matched_amount
                 match_count += 1
+                logs.append(f"Row {idx+1}: Value '{r_val}' matched rule '{matched_rule}'. Assigned amount: {matched_amount}")
+            else:
+                logs.append(f"Row {idx+1}: Value '{r_val}' matched rule '{matched_rule}', BUT amount evaluated to 0. Raw row amounts: {row_amounts}")
+        else:
+            logs.append(f"Row {idx+1}: Value '{r_val}' did not match ANY rule in the matrix!")
                 
     logs.append(f"Successfully applied matrix pricing to {match_count} rows.")
     return df, logs
